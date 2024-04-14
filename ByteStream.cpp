@@ -22,7 +22,7 @@
     http://github.com/PabloAlbiol/ByteStream
 */
 
-#include "ByteStream.h"
+#include "ByteStream.hpp"
 #include <iostream>
 #include <cstring>
 
@@ -30,45 +30,63 @@
 ByteStream::ByteStream(const unsigned int cap)
 {
     // Buffer array. Stores the byte stream
-    buffer = NULL;
+    _buffer = NULL;
 
     // Buffer capacity. Memory available
-    capacity = cap;
+    _capacity = cap;
     // Buffer index. Position where the next byte will be read
-    index = 0;
+    _index = 0;
     // Buffer length
-    length = 0;
+    _length = 0;
 
     try
     {
         // Create buffer array dynamically
-        buffer = new unsigned char[cap];
+        _buffer = new unsigned char[cap];
     }
     catch(std::bad_alloc)
     {
         // Not enough memory
-        capacity = 0;
+        _capacity = 0;
     }
+}
+
+ByteStream::ByteStream(unsigned char* buffer, unsigned int size)
+{
+    _buffer = new unsigned char[size];
+    //for (int i = 0; i < size; i++)
+    //    _buffer[i] = buffer[i];
+    std::copy(buffer, buffer + size, _buffer);
+    //_buffer = buffer;
+    _capacity = size;
+    _index = 0;
+    _length = size;
+}
+
+ByteStream::ByteStream(unsigned char* buffer, const unsigned int size, const unsigned int cap) :
+    ByteStream(buffer, size)
+{
+    _capacity = cap;
 }
 
 ByteStream::ByteStream(const ByteStream &c)
 {
-    buffer = NULL;
-    capacity = c.capacity;
-    index = c.index;
-    length = c.length;
+    _buffer = NULL;
+    _capacity = c._capacity;
+    _index = c._index;
+    _length = c._length;
 
     try
     {
-        buffer = new unsigned char[capacity];
-        memcpy(buffer, c.buffer, capacity*sizeof(unsigned char));
+        _buffer = new unsigned char[_capacity];
+        memcpy(_buffer, c._buffer, _capacity*sizeof(unsigned char));
     }
     catch(std::bad_alloc)
     {
         // Not enough memory
-        capacity = 0;
-        index = 0;
-        length = 0;
+        _capacity = 0;
+        _index = 0;
+        _length = 0;
     }
 }
 
@@ -76,27 +94,27 @@ ByteStream &ByteStream::operator=(const ByteStream &c)
 {
     if (this != &c)
     {
-        capacity = c.capacity;
-        index = c.index;
-        length = c.length;
+        _capacity = c._capacity;
+        _index = c._index;
+        _length = c._length;
 
-        delete[] buffer;
-        if (c.buffer)
+        delete[] _buffer;
+        if (c._buffer)
         {
             try
             {
-                buffer = new unsigned char[capacity];
-                memcpy(buffer, c.buffer, capacity*sizeof(unsigned char));
+                _buffer = new unsigned char[_capacity];
+                memcpy(_buffer, c._buffer, _capacity*sizeof(unsigned char));
             }
             catch(std::bad_alloc)
             {
                 // Not enough memory
-                capacity = 0;
-                index = 0;
-                length = 0;
+                _capacity = 0;
+                _index = 0;
+                _length = 0;
             }
         }
-        else buffer = NULL;
+        else _buffer = NULL;
     }
     return *this;
 }
@@ -104,21 +122,21 @@ ByteStream &ByteStream::operator=(const ByteStream &c)
 ByteStream::~ByteStream()
 {
     // Free memory
-    if (buffer != NULL)
+    if (_buffer != NULL)
     {
-        delete[] buffer;
+        delete[] _buffer;
     }
 }
 
 
 void ByteStream::append(const unsigned char byte)
 {
-    if (length < (capacity - index ))
+    if (_length < (_capacity - _index ))
     {
-        buffer[length + index] = byte;
-        length++;
+        _buffer[_length + _index] = byte;
+        _length++;
     }
-    else if (index > 0)
+    else if (_index > 0)
     {
         reorder();
         append(byte);
@@ -127,69 +145,69 @@ void ByteStream::append(const unsigned char byte)
 
 void ByteStream::clear()
 {
-    index = 0;
-    length = 0;
+    _index = 0;
+    _length = 0;
 }
 
 unsigned int ByteStream::getBuf(unsigned char buf[])
 {
-    if (index > 0)
+    if (_index > 0)
     {
         reorder();
     }
 
     // Copy the buffer array
-    memcpy(buf, buffer, length*sizeof(unsigned char));
+    memcpy(buf, _buffer, _length*sizeof(unsigned char));
 
-    return length;
+    return _length;
 }
 
 unsigned int ByteStream::getCapacity()
 {
-    return capacity;
+    return _capacity;
 }
 
 unsigned int ByteStream::getLength()
 {
-    return length;
+    return _length;
 }
 
-unsigned char ByteStream::remove()
+unsigned char ByteStream::readByte()
 {
     unsigned char byte = 0; // Not the best solution, it returns a 0 if length = 0
-    if (length > 0)
+    if (_length > 0)
     {
-        byte = buffer[index];
-        index++;
-        length--;
+        byte = _buffer[_index];
+        _index++;
+        _length--;
     }
     return byte;
 }
 
 void ByteStream::reorder()
 {
-    for (unsigned int i = 0; i < capacity; i++)
+    for (unsigned int i = 0; i < _capacity; i++)
     {
-        buffer[i] = buffer[i + index];
+        _buffer[i] = _buffer[i + _index];
     }
-    index = 0;
+    _index = 0;
 }
 
 void ByteStream::setBuf(const unsigned char buf[], const unsigned int size)
 {
-    if (size <= capacity)
+    if (size <= _capacity)
     {
         // Copy the buffer array
-        memcpy(buffer, buf, size*sizeof(unsigned char));
+        memcpy(_buffer, buf, size*sizeof(unsigned char));
 
-        length = size;
-        index = 0;
+        _length = size;
+        _index = 0;
     }
     else
     {
         // Not enough memory
-        index = 0;
-        length = 0;
+        _index = 0;
+        _length = 0;
     }
 }
 
@@ -495,12 +513,13 @@ ByteStream &ByteStream::operator<<(const ByteStream::Array array)
 
 // Operator >> overloading
 
+
 ByteStream &ByteStream::operator>>(const bool &val)
 {
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(bool); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -510,7 +529,7 @@ ByteStream &ByteStream::operator>>(const unsigned char &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(unsigned char); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -520,7 +539,7 @@ ByteStream &ByteStream::operator>>(const char &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(char); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -530,7 +549,7 @@ ByteStream &ByteStream::operator>>(const unsigned short int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(unsigned short int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -540,7 +559,7 @@ ByteStream &ByteStream::operator>>(const short int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(short int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -550,7 +569,7 @@ ByteStream &ByteStream::operator>>(const unsigned int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(unsigned int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -560,7 +579,7 @@ ByteStream &ByteStream::operator>>(const int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -570,7 +589,7 @@ ByteStream &ByteStream::operator>>(const unsigned long int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(unsigned long int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -580,7 +599,7 @@ ByteStream &ByteStream::operator>>(const long int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(long int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -590,7 +609,7 @@ ByteStream &ByteStream::operator>>(const unsigned long long int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(unsigned long long int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -600,7 +619,7 @@ ByteStream &ByteStream::operator>>(const long long int &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(long long int); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -610,7 +629,7 @@ ByteStream &ByteStream::operator>>(const float &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(float); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -620,7 +639,7 @@ ByteStream &ByteStream::operator>>(const double &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(double); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -630,7 +649,7 @@ ByteStream &ByteStream::operator>>(const long double &val)
     unsigned char *pointer = (unsigned char *)&val;
     for (unsigned int i = 0; i < sizeof(long double); i++)
     {
-        pointer[i] = remove();
+        pointer[i] = readByte();
     }
     return *this;
 }
@@ -639,7 +658,7 @@ ByteStream &ByteStream::operator>>(const char string[])
 {
     unsigned int i = 0;
 
-    while(buffer[index - 1] != 0 && length > 0)
+    while(_buffer[_index - 1] != 0 && _length > 0)
     {
         *this >> string[i];
         i++;
