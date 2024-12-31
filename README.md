@@ -1,4 +1,4 @@
-## ByteStream ##
+ ## ByteStream ##
 
 ByteStream is a C++ library that handles the conversion of different data types into arrays of bytes and vice versa.
 
